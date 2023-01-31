@@ -63,7 +63,7 @@ ret, cameraMatrix, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints,
 
 ############## UNDISTORTION #####################################################
 
-img = cv.imread('pic1.jpg')
+img = cv.imread('fixed_pic1.jpg')
 h,  w = img.shape[:2]
 newCameraMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix, dist, (w,h), 1, (w,h))
 
