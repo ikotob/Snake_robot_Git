@@ -6,7 +6,7 @@ cameraMatrix = np.load("intrinsic_params.npy")
 distCoeffs = np.load("distortion_params.npy")
 
 # Start video capture
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 while True:
     # Read a frame from the camera

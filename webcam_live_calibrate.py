@@ -1,91 +1,109 @@
 import numpy as np
-import cv2 as cv
+import cv2
+import sys
+import time
+
+ARUCO_DICT = {
+    "DICT_4X4_50": cv2.aruco.DICT_4X4_50,
+    "DICT_4X4_100": cv2.aruco.DICT_4X4_100,
+    "DICT_4X4_250": cv2.aruco.DICT_4X4_250,
+    "DICT_4X4_1000": cv2.aruco.DICT_4X4_1000,
+    "DICT_5X5_50": cv2.aruco.DICT_5X5_50,
+    "DICT_5X5_100": cv2.aruco.DICT_5X5_100,
+    "DICT_5X5_250": cv2.aruco.DICT_5X5_250,
+    "DICT_5X5_1000": cv2.aruco.DICT_5X5_1000,
+    "DICT_6X6_50": cv2.aruco.DICT_6X6_50,
+    "DICT_6X6_100": cv2.aruco.DICT_6X6_100,
+    "DICT_6X6_250": cv2.aruco.DICT_6X6_250,
+    "DICT_6X6_1000": cv2.aruco.DICT_6X6_1000,
+    "DICT_7X7_50": cv2.aruco.DICT_7X7_50,
+    "DICT_7X7_100": cv2.aruco.DICT_7X7_100,
+    "DICT_7X7_250": cv2.aruco.DICT_7X7_250,
+    "DICT_7X7_1000": cv2.aruco.DICT_7X7_1000,
+    "DICT_ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
+    "DICT_APRILTAG_16h5": cv2.aruco.DICT_APRILTAG_16h5,
+    "DICT_APRILTAG_25h9": cv2.aruco.DICT_APRILTAG_25h9,
+    "DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
+    "DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
+}
 
 
-chessboardSize = (8, 6)
-frameSize = (1920, 1080)
+def aruco_display(corners, ids, rejected, image):
+    if len(corners) > 0:
 
-# termination criteria
-criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        ids = ids.flatten()
 
-# prepare object points
-objp = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
-objp[:, :2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
+        for (markerCorner, markerID) in zip(corners, ids):
+            corners = markerCorner.reshape((4, 2))
+            (topLeft, topRight, bottomRight, bottomLeft) = corners
 
-size_of_chessboard_squares_mm = 20
-objp = objp * size_of_chessboard_squares_mm
+            topRight = (int(topRight[0]), int(topRight[1]))
+            bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
+            bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
+            topLeft = (int(topLeft[0]), int(topLeft[1]))
 
-# Arrays to store object points and image points from all the images
-objpoints = []  # 3d point in real world space
-imgpoints = []  # 2d points in image plane
+            cv2.line(image, topLeft, topRight, (0, 255, 0), 2)
+            cv2.line(image, topRight, bottomRight, (0, 255, 0), 2)
+            cv2.line(image, bottomRight, bottomLeft, (0, 255, 0), 2)
+            cv2.line(image, bottomLeft, topLeft, (0, 255, 0), 2)
 
-cap = cv.VideoCapture(0)
+            cX = int((topLeft[0] + bottomRight[0]) / 2.0)
+            cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+            cv2.circle(image, (cX, cY), 4, (0, 0, 255), -1)
 
-while True:
-    ret, frame = cap.read()
+            cv2.putText(image, str(markerID), (topLeft[0], topLeft[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 0), 2)
+            print("[Inference] ArUco marker ID: {}".format(markerID))
 
-    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    return image
 
-    # Find the chess board corners
-    ret, corners = cv.findChessboardCorners(gray, chessboardSize, None)
 
-    # If found, add object points, image points (after refining them)
-    if ret:
-        objpoints.append(objp)
-        corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-        imgpoints.append(corners)
+def pose_estimation(frame, aruco_dict_type, matrix_coefficients, distortion_coefficients):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    cv2.aruco_dict = cv2.aruco.Dictionary_get(aruco_dict_type)
+    parameters = cv2.aruco.DetectorParameters_create()
 
-        # Draw and display the corners
-        cv.drawChessboardCorners(frame, chessboardSize, corners2, ret)
-        cv.imshow('frame', frame)
-        key = cv.waitKey(1)
-        if key == 27:
-            break
+    corners, ids, rejected_img_points = cv2.aruco.detectMarkers(gray, cv2.aruco_dict, parameters=parameters,
+                                                                cameraMatrix=matrix_coefficients,
+                                                                distCoeff=distortion_coefficients)
 
-    if len(objpoints) >= 10:
+    if len(corners) > 0:
+        for i in range(0, len(ids)):
+            rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, matrix_coefficients,
+                                                                           distortion_coefficients)
+
+            cv2.aruco.drawDetectedMarkers(frame, corners)
+
+            cv2.aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec, tvec, 0.01)
+
+    return frame
+
+
+aruco_type = "DICT_5X5_100"
+
+arucoDict = cv2.aruco.Dictionary_get(ARUCO_DICT[aruco_type])
+
+arucoParams = cv2.aruco.DetectorParameters_create()
+
+intrinsic_camera = np.load('intrinsic_params.npy')
+distortion = np.load('distortion_params.npy')
+
+cap = cv2.VideoCapture(1)
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+while cap.isOpened():
+
+    ret, img = cap.read()
+
+    output = pose_estimation(img, ARUCO_DICT[aruco_type], intrinsic_camera, distortion)
+
+    cv2.imshow('Estimated Pose', output)
+
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
         break
 
 cap.release()
-cv.destroyAllWindows()
-
-# CALIBRATION
-ret, cameraMatrix, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, frameSize, None, None)
-
-# UNDISTORTION
-img = cv.imread('fixed_pic1.jpg')
-h, w = img.shape[:2]
-newCameraMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix, dist, (w, h), 1, (w, h))
-
-# Undistort
-dst = cv.undistort(img, cameraMatrix, dist, None, newCameraMatrix)
-
-# crop the image
-x, y, w, h = roi
-dst = dst[y:y + h, x:x + w]
-cv.imwrite('caliResult1.jpg', dst)
-
-# Undistort with Remapping
-mapx, mapy = cv.initUndistortRectifyMap(cameraMatrix, dist, None, newCameraMatrix, (w, h), 5)
-dst = cv.remap(img, mapx, mapy, cv.INTER_LINEAR)
-
-# crop the image
-x, y, w, h = roi
-dst = dst[y:y + h, x:x + w]
-
-new_cam_matrix = cameraMatrix
-new_cam_matrix = np.array(new_cam_matrix)
-np.save("new_cam_matrix.npy",new_cam_matrix)
-
-#display the results
-cv.imshow("Original Image", img)
-cv.imshow("Undistorted Image", dst)
-cv.waitKey(0)
-cv.destroyAllWindows()
-if dst.shape[0] > 0 and dst.shape[1] > 0:
-    cv.imshow("Undistorted Image", dst)
-    cv.waitKey(0)
-else:
-    print("Error: Invalid image size")
-
-cv.destroyAllWindows()
-
+cv2.destroyAllWindows()
