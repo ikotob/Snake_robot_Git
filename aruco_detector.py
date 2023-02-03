@@ -79,7 +79,7 @@ def pose_estimation(frame, aruco_dict_type, matrix_coefficients, distortion_coef
     return frame
 
 
-aruco_type = "DICT_5X5_100"
+aruco_type = "DICT_4X4_1000"
 
 arucoDict = cv2.aruco.Dictionary_get(ARUCO_DICT[aruco_type])
 
@@ -96,10 +96,24 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 while cap.isOpened():
 
     ret, img = cap.read()
-
+    cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     output = pose_estimation(img, ARUCO_DICT[aruco_type], intrinsic_camera, distortion)
 
-    cv2.imshow('Estimated Pose', output)
+
+    #Undistort the frame
+    h,w = img.shape[:2]
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(intrinsic_camera, distortion, (w,h),1,(w,h))
+    undistort = cv2.undistort(output,intrinsic_camera,distortion, None, newcameramtx )
+
+    #Crop the image to remove black regions
+    x, y, w, h = roi
+    undistort = undistort[y:y+h, x:x+w]
+
+
+    #Display the undistorted image
+    cv2.imshow('Estimated Pose', undistort)
+
+
 
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
