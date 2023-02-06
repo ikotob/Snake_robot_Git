@@ -23,20 +23,49 @@ while True:
     undistorted = cv2.undistort(frame, mtx, dist, None, newcameramtx)
 
     # Detect the markers
-    corners, ids, _ = cv2.aruco.detectMarkers(undistorted, aruco_dict)
+    corners1, ids1, _ = cv2.aruco.detectMarkers(undistorted, aruco_dict)
+    corners2, ids2, _ = cv2.aruco.detectMarkers(undistorted, aruco_dict)
 
     # Estimate the pose of the marker
-    if ids is not None:
-        rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners, markerLength, mtx, dist)
-        tvec = tvec[0].reshape(3, 1)
-        rvec = rvec[0].reshape(3, 1)
+    if ids1 is not None:
+        rvec1, tvec1, _ = cv2.aruco.estimatePoseSingleMarkers(corners1, markerLength, mtx, dist)
+        tvec1 = tvec1[0].reshape(3, 1)
+        rvec1 = rvec1[0].reshape(3, 1)
 
-        cv2.aruco.drawAxis(undistorted, mtx, dist, rvec, tvec, markerLength)
+        cv2.aruco.drawAxis(undistorted, mtx, dist, rvec1, tvec1, markerLength)
 
         # Compute the distance to the marker
-        distance = np.linalg.norm(tvec[0][0])
-        cv2.putText(undistorted, "Distance: {:.2f} m".format(distance), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                    (255, 0, 0), 2)
+        distance_horizontal_1 = np.linalg.norm(tvec1[0][0])
+        distance_vertical_1 = np.abs(tvec1[1][0])
+        distance_xyz_1 = np.linalg.norm(tvec1[:, 0])
+
+
+        rotate_1 = np.abs(rvec1[1][0])
+
+        cv2.putText(undistorted, "Horizontal Distance: {:.2f} m".format(distance_horizontal_1), (50, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 0, 0), 2)
+        cv2.putText(undistorted, "Vertical Distance: {:.2f} m".format(distance_vertical_1), (50, 80), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 0, 0), 2)
+        cv2.putText(undistorted, "Distance xyz: {:.2f} m".format(distance_xyz_1), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(undistorted, "rotate: {:.2f} deg".format(rotate_1 / np.pi * 180), (50, 250), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 0, 0), 2)
+
+    if ids2 is not None:
+        rvec2, tvec2, _ = cv2.aruco.estimatePoseSingleMarkers(corners2, markerLength, mtx, dist)
+        tvec2 = tvec2[0].reshape(3, 1)
+        rvec2 = rvec2[0].reshape(3, 1)
+
+        cv2.aruco.drawAxis(undistorted, mtx, dist, rvec1, tvec1, markerLength)
+        cv2.aruco.drawAxis(undistorted, mtx, dist, rvec2, tvec2, markerLength)
+
+
+        distance_horizontal_2 = np.linalg.norm(tvec2[0][0])
+        distance_vertical_2 = np.abs(tvec2[1][0])
+        distance_xyz_2 = np.linalg.norm(tvec2[:, 0])
+
+        rotate_2 = np.abs(rvec2[1][0])
+
+        cv2.putText(undistorted, "Horizontal Distance 2: {:.2f} m".format(distance_horizontal_2), (50, 400), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 0, 0), 2)
+        cv2.putText(undistorted, "Vertical Distance 2: {:.2f} m".format(distance_vertical_2), (50, 600), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 0, 0), 2)
+        cv2.putText(undistorted, "Distance xyz 2: {:.2f} m".format(distance_xyz_2), (50, 800), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(undistorted, "rotate 2: {:.2f} deg".format(rotate_2 / np.pi * 180), (50, 1000), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 0, 0), 2)
 
     # Display the image
     cv2.imshow("Undistorted", undistorted)
